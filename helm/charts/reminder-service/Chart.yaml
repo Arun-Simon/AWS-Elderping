@@ -1,0 +1,6 @@
+apiVersion: v2
+name: reminder-service
+description: A Helm chart for reminder-service microservice
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

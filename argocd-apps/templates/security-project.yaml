@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: security
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  description: "ArgoCD Project for EKS Identity, Secrets Management, and Certificates"
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: security
+      server: https://kubernetes.default.svc
+    - namespace: healthcare
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

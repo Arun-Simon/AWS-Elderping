@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace | default "healthcare" }}
+  labels:
+    app: {{ .Chart.Name }}
+data:
+  PORT: "{{ .Values.service.port }}"
+  DB_HOST: "{{ .Values.env.dbHost }}"
+  DB_PORT: "{{ .Values.env.dbPort }}"
+  DB_NAME: "{{ .Values.env.dbName }}"
+  DB_USER: "{{ .Values.env.dbUser }}"
+  AWS_REGION: "{{ .Values.env.awsRegion }}"
+  COGNITO_USER_POOL_ID: "{{ .Values.env.cognitoUserPoolId }}"

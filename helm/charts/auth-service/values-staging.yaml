@@ -1,0 +1,15 @@
+# Staging environment values override
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 400m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  environment: "staging"
+  dbHost: "auth-db-staging"
+  dbName: "users_db_staging"

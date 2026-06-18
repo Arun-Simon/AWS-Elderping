@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elderping
+  labels:
+    app.kubernetes.io/name: elderping
+    app.kubernetes.io/managed-by: kubectl

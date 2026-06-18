@@ -1,0 +1,114 @@
+# =============================================================
+# kgateway.yaml — KGateway (Envoy-based) Gateway + HTTPRoute
+#
+# Requires: kgateway installed in the cluster.
+# Install:  https://kgateway.dev/docs/installation/
+# =============================================================
+# GatewayClass — use the kgateway controller
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: kgateway
+spec:
+  controllerName: kgateway.dev/kgateway
+---
+# Gateway — listen on port 80 for HTTP traffic
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: elderping-gateway
+  namespace: elderping
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+# HTTPRoute — route traffic to each backend service with path rewriting
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: elderping-httproute
+  namespace: elderping
+spec:
+  parentRefs:
+    - name: elderping-gateway
+      namespace: elderping
+  rules:
+    # /api/auth/* → auth-service /* (strips /api/auth prefix)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: auth-service
+          port: 3000
+          weight: 1
+
+    # /api/health/* → health-service /* (strips /api/health prefix)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/health
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: health-service
+          port: 3000
+          weight: 1
+
+    # /api/reminder/* → reminder-service /* (strips /api/reminder prefix)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/reminder
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: reminder-service
+          port: 3000
+          weight: 1
+
+    # /api/alert/* → alert-service /* (strips /api/alert prefix)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/alert
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: alert-service
+          port: 3000
+          weight: 1
+
+    # Default: all other traffic goes to the React UI
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ui-service
+          port: 80
+          weight: 1

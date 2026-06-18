@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: elderpinq-servicemonitor
+  namespace: monitoring
+  labels:
+    release: prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: elderpinq
+  namespaceSelector:
+    matchNames:
+      - healthcare
+      - platform
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+    - port: http
+      path: /health
+      interval: 30s

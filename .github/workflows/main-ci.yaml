@@ -1,0 +1,199 @@
+name: Monorepo Orchestrator CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/*'
+    tags:
+      - 'v*'
+    paths-ignore:
+      - 'helm/**'
+      - 'argocd-apps/**'
+      - 'infrastructure/**'
+      - '.github/**'
+      - 'README.md'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      # Map change detection outputs to job outputs
+      ui-service: ${{ steps.filter.outputs.ui-service }}
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+      health-service: ${{ steps.filter.outputs.health-service }}
+      reminder-service: ${{ steps.filter.outputs.reminder-service }}
+      alert-service: ${{ steps.filter.outputs.alert-service }}
+      appointment-service: ${{ steps.filter.outputs.appointment-service }}
+      notes-service: ${{ steps.filter.outputs.notes-service }}
+      ai-service: ${{ steps.filter.outputs.ai-service }}
+      report-service: ${{ steps.filter.outputs.report-service }}
+      notification-service: ${{ steps.filter.outputs.notification-service }}
+      audit-service: ${{ steps.filter.outputs.audit-service }}
+      finops-service: ${{ steps.filter.outputs.finops-service }}
+      environment: ${{ steps.env.outputs.environment }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Path Filtering
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            ui-service:
+              - 'ui-service/**'
+            auth-service:
+              - 'auth-service/**'
+            health-service:
+              - 'health-service/**'
+            reminder-service:
+              - 'reminder-service/**'
+            alert-service:
+              - 'alert-service/**'
+            appointment-service:
+              - 'appointment-service/**'
+            notes-service:
+              - 'notes-service/**'
+            ai-service:
+              - 'ai-service/**'
+            report-service:
+              - 'report-service/**'
+            notification-service:
+              - 'notification-service/**'
+            audit-service:
+              - 'audit-service/**'
+            finops-service:
+              - 'finops-service/**'
+
+      - name: Determine Environment
+        id: env
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" =~ ^refs/tags/v ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+  # Call reusable workflow for modified services
+  ui-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ui-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: ui-service
+      service_path: ui-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  auth-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: auth-service
+      service_path: auth-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  health-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.health-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: health-service
+      service_path: health-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  reminder-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.reminder-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: reminder-service
+      service_path: reminder-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  alert-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.alert-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: alert-service
+      service_path: alert-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  appointment-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.appointment-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: appointment-service
+      service_path: appointment-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  notes-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.notes-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: notes-service
+      service_path: notes-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  ai-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ai-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: ai-service
+      service_path: ai-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  report-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.report-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: report-service
+      service_path: report-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  notification-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.notification-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: notification-service
+      service_path: notification-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  audit-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.audit-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: audit-service
+      service_path: audit-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit
+
+  finops-service:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.finops-service == 'true'
+    uses: ./.github/workflows/ci-reusable.yaml
+    with:
+      service_name: finops-service
+      service_path: finops-service
+      environment: ${{ needs.detect-changes.outputs.environment }}
+    secrets: inherit

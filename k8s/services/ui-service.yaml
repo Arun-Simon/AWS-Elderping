@@ -1,0 +1,91 @@
+# =============================================================
+# ui-service.yaml — Deployment + Service + HPA
+# The Nginx container serves the React SPA and proxies
+# /api/* to the backend services via their ClusterIP names.
+# =============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui-service
+  namespace: elderping
+  labels:
+    app: ui-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ui-service
+  template:
+    metadata:
+      labels:
+        app: ui-service
+    spec:
+      containers:
+        - name: ui-service
+          image: arunnsimon/elderpinq-ui-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+---
+# NodePort service so KGateway / HAProxy can reach the UI
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui-service
+  namespace: elderping
+  labels:
+    app: ui-service
+spec:
+  type: ClusterIP
+  selector:
+    app: ui-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ui-service-hpa
+  namespace: elderping
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ui-service
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

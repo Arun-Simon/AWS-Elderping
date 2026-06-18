@@ -1,0 +1,195 @@
+
+services:
+  # ==================================
+  # FRONTEND — nginx serves the React
+  # SPA and reverse-proxies all /api/*
+  # traffic to the backend services
+  # over the internal Docker network.
+  # ==================================
+  ui-service:
+    build:
+      context: ./ui-service
+      target: production
+    ports:
+      - "8080:80"
+    depends_on:
+      - auth-service
+      - health-service
+      - reminder-service
+      - alert-service
+    networks:
+      - elderping-network
+    restart: unless-stopped
+
+  # ==================================
+  # BACKENDS
+  # ==================================
+  auth-service:
+    build:
+      context: ./auth-service
+      target: production
+    ports:
+      - "3001:3000"
+    environment:
+      - DB_HOST=auth-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=users_db
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwt_change_in_production}
+      - PORT=3000
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - elderping-network
+    restart: unless-stopped
+
+  health-service:
+    build:
+      context: ./health-service
+      target: production
+    ports:
+      - "3002:3000"
+    environment:
+      - DB_HOST=health-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=health_db
+      - PORT=3000
+    depends_on:
+      health-db:
+        condition: service_healthy
+    networks:
+      - elderping-network
+    restart: unless-stopped
+
+  reminder-service:
+    build:
+      context: ./reminder-service
+      target: production
+    ports:
+      - "3003:3000"
+    environment:
+      - DB_HOST=reminder-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=reminder_db
+      - PORT=3000
+    depends_on:
+      reminder-db:
+        condition: service_healthy
+    networks:
+      - elderping-network
+    restart: unless-stopped
+
+  alert-service:
+    build:
+      context: ./alert-service
+      target: production
+    ports:
+      - "3004:3000"
+    environment:
+      - DB_HOST=alert-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=alert_db
+      - PORT=3000
+    depends_on:
+      alert-db:
+        condition: service_healthy
+    networks:
+      - elderping-network
+    restart: unless-stopped
+
+  # ==================================
+  # DATABASES — each service gets its
+  # own isolated PostgreSQL instance
+  # ==================================
+  auth-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=users_db
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+      - ./db-init/auth-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - elderping-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  health-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=health_db
+    volumes:
+      - health-db-data:/var/lib/postgresql/data
+      - ./db-init/health-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - elderping-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d health_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  reminder-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=reminder_db
+    volumes:
+      - reminder-db-data:/var/lib/postgresql/data
+      - ./db-init/reminder-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - elderping-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reminder_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  alert-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=alert_db
+    volumes:
+      - alert-db-data:/var/lib/postgresql/data
+      - ./db-init/alert-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - elderping-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d alert_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+# ==================================
+# Named volumes for data persistence
+# ==================================
+volumes:
+  auth-db-data:
+  health-db-data:
+  reminder-db-data:
+  alert-db-data:
+
+networks:
+  elderping-network:
+    driver: bridge

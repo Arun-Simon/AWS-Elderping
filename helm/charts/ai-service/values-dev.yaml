@@ -1,0 +1,20 @@
+# Dev environment values override
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+env:
+  environment: "dev"
+  dbHost: "ai-db-dev"
+  dbName: "ai_db_dev"
+
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::462355914183:role/elderpinq-dev-bedrock-role"
+

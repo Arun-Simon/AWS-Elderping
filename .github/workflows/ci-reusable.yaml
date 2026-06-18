@@ -1,0 +1,131 @@
+name: Reusable Microservice CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      service_path:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+    secrets:
+      SONAR_TOKEN:
+        required: true
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.service_path }}/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd ${{ inputs.service_path }}
+          npm ci
+
+      - name: Run Unit Tests
+        run: |
+          cd ${{ inputs.service_path }}
+          # Fail the build if tests fail
+          npm test
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarqube.internal.elderping.online
+
+      - name: SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+
+      - name: Configure AWS Credentials (OIDC Federation)
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::462355914183:role/elderpinq-${{ inputs.environment }}-github-actions-role
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Determine Image Tag
+        id: get-tag
+        run: |
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v ]]; then
+            CLEAN_TAG="${{ github.ref_name }}"
+          else
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            CLEAN_TAG="sha-${SHORT_SHA}"
+          fi
+          echo "image_tag=${CLEAN_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Build and Tag Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: elderpinq-${{ inputs.environment }}-${{ inputs.service_name }}
+          IMAGE_TAG: ${{ steps.get-tag.outputs.image_tag }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ${{ inputs.service_path }}
+
+      - name: Vulnerability Scan Image (Trivy)
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: elderpinq-${{ inputs.environment }}-${{ inputs.service_name }}
+          IMAGE_TAG: ${{ steps.get-tag.outputs.image_tag }}
+        run: |
+          # Fail pipeline on high or critical findings in compiled image
+          trivy image --exit-code 1 --severity CRITICAL $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Push Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: elderpinq-${{ inputs.environment }}-${{ inputs.service_name }}
+          IMAGE_TAG: ${{ steps.get-tag.outputs.image_tag }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Update Helm Chart Values (GitOps)
+        env:
+          IMAGE_TAG: ${{ steps.get-tag.outputs.image_tag }}
+        run: |
+          git config --global user.name "gitops-bot"
+          git config --global user.email "gitops@elderpinq.com"
+          
+          # Stash any local test modifications to prevent pull conflicts
+          git stash || true
+          git pull origin main --rebase
+          git stash pop || true
+          
+          # Replace target tag in the environment-specific values file of the service
+          sed -i "s/tag: .*/tag: \"${IMAGE_TAG}\"/g" helm/charts/${{ inputs.service_name }}/values-${{ inputs.environment }}.yaml
+          git add helm/charts/${{ inputs.service_name }}/values-${{ inputs.environment }}.yaml
+          git commit -m "Auto-bump: ${{ inputs.service_name }} image tag to ${IMAGE_TAG} for ${{ inputs.environment }} [skip ci]"
+          git push origin main

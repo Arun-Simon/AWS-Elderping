@@ -1,0 +1,17 @@
+{
+  "name": "ai-service",
+  "version": "1.0.0",
+  "description": "Bedrock integration and AI logic for ElderPinq",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.500.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "pg": "^8.11.5"
+  }
+}

@@ -1,0 +1,122 @@
+# =============================================================
+# reminder-db.yaml — Reminder PostgreSQL StatefulSet + PVC + Service
+# =============================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reminder-db-init
+  namespace: elderping
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS reminders (
+      id              SERIAL PRIMARY KEY,
+      user_id         INT NOT NULL,
+      medication_name VARCHAR(100) NOT NULL,
+      dosage          VARCHAR(50),
+      time_of_day     TIME NOT NULL,
+      taken           BOOLEAN DEFAULT FALSE,
+      created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reminder-db-pvc
+  namespace: elderping
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reminder-db
+  namespace: elderping
+  labels:
+    app: reminder-db
+spec:
+  type: ClusterIP
+  selector:
+    app: reminder-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: reminder-db
+  namespace: elderping
+  labels:
+    app: reminder-db
+spec:
+  serviceName: reminder-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reminder-db
+  template:
+    metadata:
+      labels:
+        app: reminder-db
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elderping-secrets
+                  key: db-password
+            - name: POSTGRES_DB
+              value: reminder_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "reminder_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "reminder_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: reminder-db-storage
+              mountPath: /var/lib/postgresql/data
+            - name: reminder-db-init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: reminder-db-storage
+          persistentVolumeClaim:
+            claimName: reminder-db-pvc
+        - name: reminder-db-init
+          configMap:
+            name: reminder-db-init

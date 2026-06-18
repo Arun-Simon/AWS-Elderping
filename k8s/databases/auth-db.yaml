@@ -1,0 +1,134 @@
+# =============================================================
+# auth-db.yaml — Auth PostgreSQL StatefulSet + PVC + Service
+# =============================================================
+
+# ConfigMap: DB init SQL script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-db-init
+  namespace: elderping
+data:
+  init.sql: |
+    -- Create users table
+    CREATE TABLE IF NOT EXISTS users (
+      id         SERIAL PRIMARY KEY,
+      username   VARCHAR(50) UNIQUE NOT NULL,
+      password   VARCHAR(255) NOT NULL,
+      role       VARCHAR(20) DEFAULT 'family',
+      invite_code VARCHAR(10) UNIQUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS family_links (
+      id         SERIAL PRIMARY KEY,
+      family_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      elder_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(family_id, elder_id)
+    );
+
+---
+# PersistentVolumeClaim backed by NFS
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: auth-db-pvc
+  namespace: elderping
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Service: ClusterIP for internal cluster access
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-db
+  namespace: elderping
+  labels:
+    app: auth-db
+spec:
+  type: ClusterIP
+  selector:
+    app: auth-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+---
+# StatefulSet: PostgreSQL for auth data
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: auth-db
+  namespace: elderping
+  labels:
+    app: auth-db
+spec:
+  serviceName: auth-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-db
+  template:
+    metadata:
+      labels:
+        app: auth-db
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elderping-secrets
+                  key: db-password
+            - name: POSTGRES_DB
+              value: users_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "users_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "users_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: auth-db-storage
+              mountPath: /var/lib/postgresql/data
+            - name: auth-db-init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: auth-db-storage
+          persistentVolumeClaim:
+            claimName: auth-db-pvc
+        - name: auth-db-init
+          configMap:
+            name: auth-db-init

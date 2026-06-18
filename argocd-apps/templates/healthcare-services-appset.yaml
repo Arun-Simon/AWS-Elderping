@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: healthcare-services
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  generators:
+    - list:
+        elements:
+          - name: ui-service
+          - name: auth-service
+          - name: health-service
+          - name: reminder-service
+          - name: alert-service
+          - name: appointment-service
+          - name: notes-service
+          - name: ai-service
+          - name: report-service
+          - name: notification-service
+          - name: audit-service
+          - name: finops-service
+  template:
+    metadata:
+      name: '{{name}}-app'
+    spec:
+      project: healthcare
+      source:
+        repoURL: https://github.com/Arun-Simon/ElderPinq.git
+        targetRevision: HEAD
+        path: 'helm/charts/{{name}}'
+        helm:
+          releaseName: '{{name}}'
+          valueFiles:
+            - values.yaml
+            - values-dev.yaml
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: healthcare
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

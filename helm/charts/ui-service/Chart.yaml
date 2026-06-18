@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ui-service
+description: A Helm chart for ui-service microservice
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

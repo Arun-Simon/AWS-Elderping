@@ -1,0 +1,17 @@
+# Production environment values override
+replicaCount: 3
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+env:
+  environment: "prod"
+  dbHost: "notes-db-prod.internal"
+  dbName: "notes_db_prod"
+
+

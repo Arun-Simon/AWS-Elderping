@@ -1,0 +1,15 @@
+# Dev environment values override
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+env:
+  environment: "dev"
+  dbHost: "auth-db-dev"
+  dbName: "users_db_dev"

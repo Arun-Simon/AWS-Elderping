@@ -1,0 +1,20 @@
+# Staging environment values override
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 400m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  environment: "staging"
+  dbHost: "ai-db-staging"
+  dbName: "ai_db_staging"
+
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::462355914183:role/elderpinq-staging-bedrock-role"
+
