@@ -50,6 +50,23 @@ data "aws_iam_policy_document" "eks_kms_policy" {
     actions   = ["kms:*"]
     resources = ["*"]
   }
+
+  statement {
+    sid    = "Allow CloudWatch Logs Service to Encrypt Logs"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["logs.us-east-1.amazonaws.com"]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_cloudwatch_log_group" "eks" {

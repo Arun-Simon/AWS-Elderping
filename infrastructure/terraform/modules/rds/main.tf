@@ -71,7 +71,7 @@ resource "aws_db_instance" "main" {
   max_allocated_storage  = 100
   db_name                = "postgres" # Initial DB, schemas created later
   engine                 = "postgres"
-  engine_version         = "15.4"
+  engine_version         = "15.18"
   instance_class         = "db.t3.micro"
   username               = "elderpinq_admin"
   password               = var.db_password
