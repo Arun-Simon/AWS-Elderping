@@ -5,26 +5,35 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+
 spec:
   project: platform
+
   source:
     repoURL: https://aws.github.io/eks-charts
     chart: aws-load-balancer-controller
     targetRevision: 1.7.2
+
     helm:
       values: |
-        clusterName: elderpinq-dev
+        clusterName: elderpinq-dev-eks
+        vpcId: vpc-062edabf614f438c1
+
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
           annotations:
             eks.amazonaws.com/role-arn: "arn:aws:iam::462355914183:role/elderpinq-dev-aws-load-balancer-controller-role"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: platform
+
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+
     syncOptions:
       - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
