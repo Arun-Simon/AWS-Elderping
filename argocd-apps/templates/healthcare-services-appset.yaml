@@ -27,7 +27,7 @@ spec:
     spec:
       project: healthcare
       source:
-        repoURL: https://github.com/Arun-Simon/ElderPinq.git
+        repoURL: https://github.com/Arun-Simon/AWS-ElderPing.git
         targetRevision: HEAD
         path: 'helm/charts/{{name}}'
         helm:

@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Arun-Simon/ElderPinq.git
-    targetRevision: HEAD
+    repoURL: https://github.com/Arun-Simon/AWS-Elderping.git
+    targetRevision: main
     path: argocd-apps/templates
   destination:
     server: https://kubernetes.default.svc
