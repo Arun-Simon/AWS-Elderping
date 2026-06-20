@@ -13,6 +13,10 @@ spec:
     targetRevision: 58.2.2
     helm:
       values: |
+        alertmanager:
+          enabled: false
+        grafana:
+          enabled: false
         prometheus:
           prometheusSpec:
             serviceMonitorSelectorNilUsesHelmValues: false
